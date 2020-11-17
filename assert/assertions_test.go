@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/golang/protobuf/ptypes"
 )
 
 var (
@@ -101,6 +103,8 @@ type AssertionTesterNonConformingObject struct {
 }
 
 func TestObjectsAreEqual(t *testing.T) {
+	ts := ptypes.TimestampNow()
+	time.Sleep(time.Millisecond)
 	cases := []struct {
 		expected interface{}
 		actual   interface{}
@@ -112,6 +116,7 @@ func TestObjectsAreEqual(t *testing.T) {
 		{123.5, 123.5, true},
 		{[]byte("Hello World"), []byte("Hello World"), true},
 		{nil, nil, true},
+		{ts, ts, true},
 
 		// cases that are expected not to be equal
 		{map[int]int{5: 10}, map[int]int{10: 20}, false},
@@ -122,6 +127,7 @@ func TestObjectsAreEqual(t *testing.T) {
 		{time.Now, time.Now, false},
 		{func() {}, func() {}, false},
 		{uint32(10), int32(10), false},
+		{ts, ptypes.TimestampNow(), false},
 	}
 
 	for _, c := range cases {
@@ -182,6 +188,7 @@ func TestEqual(t *testing.T) {
 
 	mockT := new(testing.T)
 	var m map[string]interface{}
+	ts := ptypes.TimestampNow()
 
 	cases := []struct {
 		expected interface{}
@@ -198,6 +205,7 @@ func TestEqual(t *testing.T) {
 		{uint64(123), uint64(123), true, ""},
 		{myType("1"), myType("1"), true, ""},
 		{&struct{}{}, &struct{}{}, true, "pointer equality is based on equality of underlying value"},
+		{ts, ts, true, ""},
 
 		// Not expected to be equal
 		{m["bar"], "something", false, ""},

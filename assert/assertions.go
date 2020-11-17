@@ -18,7 +18,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/davecgh/go-spew/spew"
+	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 	"github.com/pmezard/go-difflib/difflib"
+	"google.golang.org/protobuf/testing/protocmp"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -59,6 +62,10 @@ func ObjectsAreEqual(expected, actual interface{}) bool {
 	if expected == nil || actual == nil {
 		return expected == actual
 	}
+	expectedPB, actualPB, ok := asPB(expected, actual)
+	if ok {
+		return proto.Equal(expectedPB, actualPB)
+	}
 
 	exp, ok := expected.([]byte)
 	if !ok {
@@ -73,6 +80,19 @@ func ObjectsAreEqual(expected, actual interface{}) bool {
 		return exp == nil && act == nil
 	}
 	return bytes.Equal(exp, act)
+}
+
+func asPB(expected, actual interface{}) (proto.Message, proto.Message, bool) {
+	expectedPB, ok := expected.(proto.Message)
+	if !ok {
+		return nil, nil, false
+	}
+	actualPB, ok := actual.(proto.Message)
+	if !ok {
+		return nil, nil, false
+	}
+
+	return expectedPB, actualPB, true
 }
 
 // ObjectsAreEqualValues gets whether two objects are equal, or if their
@@ -436,6 +456,11 @@ func formatUnequalValues(expected, actual interface{}) (e string, a string) {
 	case time.Duration:
 		return fmt.Sprintf("%v", expected), fmt.Sprintf("%v", actual)
 	}
+	expectedPB, actualPB, ok := asPB(expected, actual)
+	if ok {
+		return proto.MarshalTextString(expectedPB), proto.MarshalTextString(actualPB)
+	}
+
 	return truncatingFormat(expected), truncatingFormat(actual)
 }
 
@@ -1574,6 +1599,11 @@ func typeAndKind(v interface{}) (reflect.Type, reflect.Kind) {
 func diff(expected interface{}, actual interface{}) string {
 	if expected == nil || actual == nil {
 		return ""
+	}
+
+	expectedPB, actualPB, ok := asPB(expected, actual)
+	if ok {
+		return cmp.Diff(proto.MessageV2(expectedPB), proto.MessageV2(actualPB), protocmp.Transform())
 	}
 
 	et, ek := typeAndKind(expected)
